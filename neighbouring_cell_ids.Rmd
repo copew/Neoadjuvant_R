@@ -1,0 +1,469 @@
+---
+title: "getting the cell id files"
+output: pdf_document
+---
+
+Here we have 349 biopsy slides and we can see the identity of the nearest 50 neighbours for every cell.  
+
+```{r}
+library(readr)
+
+#get the files
+csvfolder <- "/Volumes/Wei/Cell_clustering/detail_newlist"
+csv_list <- list.files(csvfolder, pattern = "_cellids", recursive = T, full.names = T)
+#csv_list_lymphocytes <- csv_list[grep("lymphocyte", csv_list)]
+
+
+all_files <- lapply(csv_list, read.csv)
+names(all_files) <- sub("/Volumes/Wei/Cell_clustering/detail_newlist/clustering_detail_", "", csv_list)
+names(all_files) <- sub("_cellids_nearest50.csv", "", names(all_files))
+
+#now each file in the list of all_files has a name like "616851_lymphocyte" 
+
+#we then create different list for lymphocytes, stroma and tumour (with normal included)
+df_tumour <- all_files[c(grep("tumour", names(all_files)), grep("normal", names(all_files)))]
+df_lymphocyte <- all_files[grep("lymphocyte", names(all_files))]
+df_stroma <- all_files[grep("stroma", names(all_files))]
+
+#now add slide ID and cell type to each dataframe for combining
+for (i in 350:698) {
+#    df_tumour[[i]]$ImageID <- sub("_tumour", "",df_tumour[[i]]$ImageID)
+#   df_tumour[[i]]$ImageID <- sub("_normal", "", df_tumour[[i]]$ImageID)
+#    df_tumour[[i]]$Base_celltype <- "Tumour"
+ }
+# 
+# for (i in :349){
+#    df_lymphocyte[[i]]$ImageID <- names(df_lymphocyte)[i]
+#    df_lymphocyte[[i]]$Base_celltype <- "Lymphocyte"
+#    df_stroma[[i]]$ImageID <- names(df_stroma)[i]
+#    df_stroma[[i]]$Base_celltype <- "Stromal"
+# }
+
+saveRDS(df_tumour, file="df_tumour.RDS")
+saveRDS(df_lymphocyte, file="df_lymphocyte.RDS")
+saveRDS(df_stroma, file="df_stroma.RDS")
+
+df_tumour <- readRDS("df_tumour.RDS")
+```
+
+We can calculate summary statistic.  We shall start with tumour cells.
+
+```{r}
+#tidy up column names
+closest_colnames <- paste("C", c(1:50), sep = "")
+image_id_list <- sub("_tumour", "", names(df_tumour)[1:349])
+for (i in 1:length(df_tumour)){
+  colnames(df_tumour[[i]]) <- c(closest_colnames, "ImageID", "Base_celltype") 
+  }
+#lapply(df_tumour, setNames, nm = c(closest_colnames, "ImageID", "Base_celltype"))
+#colnames(df_tumour[[650]])
+#now we check if the images are in the same order in tumours and normals before we combine them
+#tumourlist <- names(df_tumour)[1:349]
+#tumourlist <- sub("_tumour", "", tumourlist)
+#normallist <- names(df_tumour)[350:698]
+#normallist <- sub("_normal", "", normallist)
+#mean(tumourlist==normallist)
+
+#now that it is the same
+df_alltumours <- list()
+for (i in 1:349){
+  df_alltumours[[i]] <- rbind(df_tumour[[i]], df_tumour[[i+349]])
+  }
+
+for (i in 1:349){
+ for (j in 1:50){
+  df_alltumours[[i]][,j]<-as.factor(df_alltumours[[i]][,j])
+ }
+}
+
+```
+
+we now practise it on a shortened version
+```{r}
+shortened <- readRDS("/Users/cope01/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/shortened.RDS")
+
+#combine all the normals and tumours in neighbouring cells ids
+for (i in 1:349){
+ for (j in 1:50){
+  shortened[[i]][, j] <- as.factor(sub("4", "1", shortened[[i]][, j]))
+ }
+}
+
+#now to work out the summary answer for each image
+#create an empty dataframe
+summary_tumour <- data.frame(matrix(0, nrow = 1047, ncol=52))
+summary_tumour[,51] <- rep(c("1", "2", "3"), each=349)
+colnames(summary_tumour)[51] <- "cell_type"
+colnames(summary_tumour)[52] <- "ImageID"
+colnames(summary_tumour)[1:50] <- closest_colnames
+
+#it is important to note that we're no longer calculating on position 1, 2, 3 etc.  we are calculating a cumulative sum.  so now column c5 calculates the percentage of the 5 cells, not the 5th cell
+
+for (i in 1:349){
+    tmp_total <- table(factor(matrix(,ncol=3, nrow=1), levels=1:3))
+  for (j in 1:50){
+    tmp <- table(factor(shortened[[i]][,j], levels=1:3))
+    tmp_total <- tmp+tmp_total
+    summary_tumour[i,j] <- tmp_total[which(names(tmp_total)=="1")]/sum(tmp_total)
+    summary_tumour[i+349,j] <- tmp_total[which(names(tmp_total)=="2")]/sum(tmp_total)
+    summary_tumour[i+698,j] <- tmp_total[which(names(tmp_total)=="3")]/sum(tmp_total)
+    summary_tumour[c(i, i+349, i+698), 52] <- names(shortened)[i]
+  }
+}
+
+
+
+for (i in 1:349){
+    tmp_total <- table(factor(matrix(,ncol=3, nrow=1), levels=1:3))
+  for (j in 1:50){
+    tmp <- table(factor(df_alltumours[[i]][,j], levels=1:3))
+    tmp_total <- tmp+tmp_total
+    summary_tumour[i,j] <- tmp_total[which(names(tmp_total)=="1")]/sum(tmp_total)
+    summary_tumour[i+349,j] <- tmp_total[which(names(tmp_total)=="2")]/sum(tmp_total)
+    summary_tumour[i+698,j] <- tmp_total[which(names(tmp_total)=="3")]/sum(tmp_total)
+    summary_tumour[c(i, i+349, i+698), 52] <- names(df_alltumours)[i]
+  }
+}
+
+
+
+
+
+```
+
+collecting the metadata
+
+```{r}
+#load data
+library(readr)
+library(ggpubr)
+
+#who has pCR
+transneo_rcb_only <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Pathology info/TransNeo_RCB.csv")
+
+#transneo er her2 info etc
+transneo_ErHer2 <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Transneo_er_her2.csv")
+
+transneo_rcb <- merge(transneo_rcb_only, transneo_ErHer2, by="Trial_ID")
+
+#list of cases and image ID
+combined_ffpe <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Scanned Images/Combined_ffpe.csv")
+
+#density
+#catalogue_output <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Image Data/NeoAdjuvant--20180808-145608.csv")
+
+#then subset using only image ID that we have neighbourhood analysis for
+biopsy_subset <- combined_ffpe[which(combined_ffpe$`Image ID` %in% image_id_list), ]
+
+#now merge with the transneo_rcb data
+subset_transneo <- merge(transneo_rcb, biopsy_subset, by="Trial_ID")
+colnames(subset_transneo)[32] <- "ImageID"
+
+
+#now combine the neighbourhood data with the metadata
+tumour_with_meta <- merge(subset_transneo, summary_tumour, by="ImageID")
+```
+
+let's see if the neighbourhood info makes a difference
+
+```{r}
+colnames(tumour_with_meta)
+tumour_with_meta <- tumour_with_meta[-which(is.na(tumour_with_meta$RCB)), ]
+
+tumour_with_meta_sub <- tumour_with_meta[, c(1:34, 38, 43, 48, 53, 83, 84)]
+
+tumour_with_meta_sub_melted <- melt(tumour_with_meta_sub, id=colnames(tumour_with_meta_sub)[c(1:33, 40)])
+tumour_with_meta_melted <- melt(tumour_with_meta, id=colnames(tumour_with_meta)[c(1:33, 84)])
+tumour_with_meta_melted$variable <- as.numeric(sub("C", "", tumour_with_meta_melted$variable))
+
+#change the facet label from 1, 2, 3 to corresponding cell types
+facet_labels <- c("1" = "Tumour Cells", "2" = "Lymphocytes", "3" = "Stromal Cells")
+
+
+
+ggplot(tumour_with_meta_melted, aes(x=variable, y=value, colour=RCB)) +
+  #geom_boxplot()+
+  #geom_point()+
+  geom_smooth(formula=y~x)+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))
+
+
+ggplot(tumour_with_meta_melted, aes(x=variable, y=value, colour=cell_type))+
+         geom_smooth(formula=y~x)+
+         facet_wrap(~RCB)
+
+tumour_wth_meta_melted_1to10 <- tumour_with_meta_melted[which(tumour_with_meta_melted$variable %in% c(1:10, 1)), ]
+
+ggplot(tumour_wth_meta_melted_1to10, aes(x=variable, y=value, colour=RCB))+
+         geom_smooth(formula=y~x)+
+  facet_wrap(~cell_type)
+
+
+
+
+
+```
+
+
+
+```{r}
+tumour_with_meta_sub_melted$RCB <- as.factor(tumour_with_meta_sub_melted$RCB)
+tumour_with_meta_sub_melted$pCRornot <- ifelse(tumour_with_meta_sub_melted$RCB=="pCR", "pCR", "not_pCR")
+
+ggplot(tumour_with_meta_sub_melted, aes(x=pCRornot,y=value))+
+  geom_boxplot()+
+  facet_grid(cell_type~variable)+
+  theme_bw()+
+  stat_compare_means()
+
+
+```
+
+now we use the real thing
+
+```{r}
+#get the file from the cluster
+summary_tumour <- readRDS("/Users/cope01/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/summary_tumour.RDS")
+load("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Nanostring/R scripts/transneo_rcb_digipath.RDATA")
+colnames(test_df_rcb)[1] <- "ImageID"
+#colnames(summary_tumour)
+
+combined_tumour <- merge(summary_tumour, test_df_rcb, by="ImageID")
+normalised_combined_tumour <- combined_tumour
+
+#now add the ratio (normalised) column
+for (i in 1:nrow(normalised_combined_tumour)){
+  for(j in 1:50){
+  if (normalised_combined_tumour$cell_type[i]=="1") {
+    normalised_combined_tumour[i,j+1] <- normalised_combined_tumour[i, j+1]/normalised_combined_tumour$fraction_cancer[i]
+  } else if (normalised_combined_tumour$cell_type[i]=="2") {
+    normalised_combined_tumour[i,j+1] <- normalised_combined_tumour[i, j+1]/normalised_combined_tumour$fraction_lymph[i]
+  } else if (normalised_combined_tumour$cell_type[i]=="3") {
+    normalised_combined_tumour[i,j+1] <- normalised_combined_tumour[i, j+1]/normalised_combined_tumour$fraction_stromal[i]
+  }
+}
+}
+
+```
+
+see if we can plot it
+
+```{r}
+combined_tumour_melted <- melt(combined_tumour, id=colnames(combined_tumour)[c(1, 52:115)])
+combined_tumour_melted$variable <- as.numeric(combined_tumour_melted$variable)
+ggplot(combined_tumour_melted, aes(x=variable, y=value, colour=pCR)) +
+  geom_smooth(formula = y~x)+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))+
+  theme_bw()
+
+combined_normalised_tumour_melted <- melt(normalised_combined_tumour, id=colnames(normalised_combined_tumour)[c(1, 52:115)])
+combined_normalised_tumour_melted$variable <- as.numeric(combined_normalised_tumour_melted$variable)
+
+ggplot(combined_normalised_tumour_melted, aes(x=variable, y=value)) +
+  #geom_smooth(formula = y~x)+
+  geom_point()+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))+
+  theme_bw()+
+  ylim(c(0, 20))
+
+save(combined_tumour, file="combined_tumour.RData")
+
+```
+
+
+```{r}
+#now just focus on tumour cells
+tumour_cells_only <- combined_normalised_tumour_melted[which(combined_normalised_tumour_melted$cell_type=="1"), ]
+
+ggplot(tumour_cells_only, aes(x=variable, y=value, colour=pCR)) +
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  facet_wrap(~RCB)
+
+ggplot(data = tumour_cells_only) +
+  geom_pointrange(mapping = aes(x = variable, y = value, colour=pCR),
+                  stat = "summary",
+                  fun.ymin = function(z) {quantile(z,0.25)},
+                  fun.ymax = function(z) {quantile(z,0.75)},
+                  fun.y = median)+
+  theme_bw()
+
+
+
+```
+
+now we analyse similar things for lymphocytes
+
+```{r}
+csv_list_lymphocytes <- csv_list[grep("lymphocyte", csv_list)]
+lymphocytes_files <- lapply(csv_list_lymphocytes, function(i) read.csv(i, header = FALSE))
+
+
+names(lymphocytes_files) <- sub("/Volumes/Wei/Cell_clustering/detail_newlist/clustering_detail_", "", csv_list_lymphocytes)
+names(lymphocytes_files) <- sub("_lymphocyte_cellids_nearest50.csv", "", names(lymphocytes_files))
+
+saveRDS(lymphocytes_files, file="df_lymphocytes.RDS")
+```
+
+We can calculate summary statistic for lymphocytes
+```{r}
+#tidy up column names
+closest_colnames <- paste("C", c(1:50), sep = "")
+image_id_list <- names(lymphocytes_files)
+for (i in 1:length(lymphocytes_files)){
+  lymphocytes_files[[i]]$ImageID <- names(lymphocytes_files)[i]
+  lymphocytes_files[[i]]$Base_celltype <- "Lymphocytes"
+  colnames(lymphocytes_files[[i]]) <- c(closest_colnames, "ImageID", "Base_celltype") 
+  }
+
+#now change into factors
+for (i in 1:349){
+ for (j in 1:50){
+  lymphocytes_files[[i]][,j]<-as.factor(lymphocytes_files[[i]][,j])
+ }
+}
+
+#now the summary
+summary_lymphocytes <- data.frame(matrix(0, nrow = 1047, ncol=52))
+summary_lymphocytes[,51] <- rep(c("1", "2", "3"), each=349)
+colnames(summary_lymphocytes)[51] <- "cell_type"
+colnames(summary_lymphocytes)[52] <- "ImageID"
+colnames(summary_lymphocytes)[1:50] <- closest_colnames
+for (i in 1:349){
+    tmp_total <- table(factor(matrix(,ncol=3, nrow=1), levels=1:3))
+  for (j in 1:50){
+    tmp <- table(factor(lymphocytes_files[[i]][,j], levels=1:3))
+    tmp_total <- tmp+tmp_total
+    summary_lymphocytes[i,j] <- tmp_total[which(names(tmp_total)=="1")]/sum(tmp_total)
+    summary_lymphocytes[i+349,j] <- tmp_total[which(names(tmp_total)=="2")]/sum(tmp_total)
+    summary_lymphocytes[i+698,j] <- tmp_total[which(names(tmp_total)=="3")]/sum(tmp_total)
+    summary_lymphocytes[c(i, i+349, i+698), 52] <- names(lymphocytes_files)[i]
+  }
+}
+
+saveRDS(summary_lymphocytes, file="summary_lymphocytes.RDS")
+
+combined_lymphocytes <- merge(summary_lymphocytes, test_df_rcb, by="ImageID")
+library(reshape2)
+library(ggplot2)
+combined_lymphocytes_melted <- melt(combined_lymphocytes, id=colnames(combined_lymphocytes)[c(1, 52:115)])
+combined_lymphocytes_melted$variable <- as.numeric(combined_lymphocytes_melted$variable)
+ggplot(combined_lymphocytes_melted, aes(x=variable, y=value, colour=pCR)) +
+  geom_smooth(formula = y~x)+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))+
+  theme_bw()
+
+#now add the ratio (normalised) column
+normalised_combined_lymphocytes <- combined_lymphocytes
+for (i in 1:nrow(normalised_combined_lymphocytes)){
+  for(j in 1:50){
+  if (normalised_combined_lymphocytes$cell_type[i]=="1") {
+    normalised_combined_lymphocytes[i,j+1] <- normalised_combined_lymphocytes[i, j+1]/normalised_combined_lymphocytes$fraction_cancer[i]
+  } else if (normalised_combined_lymphocytes$cell_type[i]=="2") {
+    normalised_combined_lymphocytes[i,j+1] <- normalised_combined_lymphocytes[i, j+1]/normalised_combined_lymphocytes$fraction_lymph[i]
+  } else if (normalised_combined_lymphocytes$cell_type[i]=="3") {
+    normalised_combined_lymphocytes[i,j+1] <- normalised_combined_lymphocytes[i, j+1]/normalised_combined_lymphocytes$fraction_stromal[i]
+  }
+}
+}
+
+
+
+combined_normalised_lymphocytes_melted <- melt(normalised_combined_lymphocytes, id=colnames(normalised_combined_lymphocytes)[c(1, 52:115)])
+combined_normalised_lymphocytes_melted$variable <- as.numeric(combined_normalised_lymphocytes_melted$variable)
+ggplot(combined_normalised_lymphocytes_melted, aes(x=variable, y=value, colour=pCR)) +
+  geom_smooth(formula = y~x)+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))+
+  theme_bw()+
+  ggtitle("Normalised for cell type fraction")
+
+save(combined_lymphocytes, file="combined_lymphocytes.RData")
+
+```
+
+now we do stromal cells
+
+```{r}
+csv_list_stromal <- csv_list[grep("stroma", csv_list)]
+stroma_files <- lapply(csv_list_stromal, function(i) read.csv(i, header = FALSE))
+
+names(stroma_files) <- sub("/Volumes/Wei/Cell_clustering/detail_newlist/clustering_detail_", "", csv_list_stromal)
+names(stroma_files) <- sub("_stroma_cellids_nearest50.csv", "", names(stroma_files))
+
+saveRDS(stroma_files, file="df_stroma.RDS")
+```
+
+```{r}
+#tidy up column names
+closest_colnames <- paste("C", c(1:50), sep = "")
+image_id_list <- names(stroma_files)
+for (i in 1:length(stroma_files)){
+  stroma_files[[i]]$ImageID <- names(stroma_files)[i]
+  stroma_files[[i]]$Base_celltype <- "Stroma"
+  colnames(stroma_files[[i]]) <- c(closest_colnames, "ImageID", "Base_celltype") 
+  }
+
+#now change into factors
+for (i in 1:349){
+ for (j in 1:50){
+  stroma_files[[i]][,j]<-as.factor(stroma_files[[i]][,j])
+ }
+}
+
+#now the summary
+summary_stroma <- data.frame(matrix(0, nrow = 1047, ncol=52))
+summary_stroma[,51] <- rep(c("1", "2", "3"), each=349)
+colnames(summary_stroma)[51] <- "cell_type"
+colnames(summary_stroma)[52] <- "ImageID"
+colnames(summary_stroma)[1:50] <- closest_colnames
+for (i in 1:349){
+    tmp_total <- table(factor(matrix(,ncol=3, nrow=1), levels=1:3))
+  for (j in 1:50){
+    tmp <- table(factor(stroma_files[[i]][,j], levels=1:3))
+    tmp_total <- tmp+tmp_total
+    summary_stroma[i,j] <- tmp_total[which(names(tmp_total)=="1")]/sum(tmp_total)
+    summary_stroma[i+349,j] <- tmp_total[which(names(tmp_total)=="2")]/sum(tmp_total)
+    summary_stroma[i+698,j] <- tmp_total[which(names(tmp_total)=="3")]/sum(tmp_total)
+    summary_stroma[c(i, i+349, i+698), 52] <- names(stroma_files)[i]
+  }
+}
+
+saveRDS(summary_stroma, file="summary_stroma.RDS")
+
+combined_stroma <- merge(summary_stroma, test_df_rcb, by="ImageID")
+library(reshape2)
+library(ggplot2)
+combined_stroma_melted <- melt(combined_stroma, id=colnames(combined_stroma)[c(1, 52:115)])
+combined_stroma_melted$variable <- as.numeric(combined_stroma_melted$variable)
+ggplot(combined_stroma_melted, aes(x=variable, y=value, colour=pCR)) +
+  geom_smooth(formula = y~x)+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))+
+  theme_bw()
+
+#now add the ratio (normalised) column
+normalised_combined_stroma <- combined_stroma
+for (i in 1:nrow(normalised_combined_stroma)){
+  for(j in 1:50){
+  if (normalised_combined_stroma$cell_type[i]=="1") {
+    normalised_combined_stroma[i,j+1] <- normalised_combined_stroma[i, j+1]/normalised_combined_stroma$fraction_cancer[i]
+  } else if (normalised_combined_stroma$cell_type[i]=="2") {
+    normalised_combined_stroma[i,j+1] <- normalised_combined_stroma[i, j+1]/normalised_combined_stroma$fraction_lymph[i]
+  } else if (normalised_combined_stroma$cell_type[i]=="3") {
+    normalised_combined_stroma[i,j+1] <- normalised_combined_stroma[i, j+1]/normalised_combined_stroma$fraction_stromal[i]
+  }
+}
+}
+
+
+
+combined_normalised_stroma_melted <- melt(normalised_combined_stroma, id=colnames(normalised_combined_stroma)[c(1, 52:115)])
+combined_normalised_stroma_melted$variable <- as.numeric(combined_normalised_stroma_melted$variable)
+ggplot(combined_normalised_stroma_melted, aes(x=variable, y=value, colour=pCR)) +
+  geom_smooth(formula = y~x)+
+  facet_wrap(~cell_type, labeller=labeller(cell_type = facet_labels))+
+  theme_bw()
+
+save(combined_stroma, file="combined_stroma.RData")
+
+```

@@ -1,0 +1,112 @@
+---
+title: "distance of lymphocytes with RCB"
+output: pdf_document
+---
+
+
+
+```{r}
+library(reshape2)
+library(ggplot2)
+library(readr)
+
+
+
+clustering_data_multi_distance_second <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/Cell_clustering/clustering_data_multi_distance_second.csv")
+
+clustering_data_multi_distance_second$Slide_ID <- as.integer(clustering_data_multi_distance_second$Slide_ID)
+clustering_data_multi_distance_second$Slide_ID <- as.character(clustering_data_multi_distance_second$Slide_ID)
+colnames(clustering_data_multi_distance_second)[1] <- "Image_ID"
+
+#save(transneo_rcb, file = "transneo_rcb.RData")
+load("transneo_rcb.RData")
+
+#save(transneo_biopsy_HandE_breast, file="transneo_biopsy_HandE_breast.RData")
+load("transneo_biopsy_HandE_breast.RData")
+
+save(test_df_rcb, file="biopsy_rcb.RData")
+load("biopsy_rcb.RData")
+
+biopsy_distance_df <- merge(test_df_rcb, clustering_data_multi_distance_second, by="Image_ID")
+```
+
+so now we look at various measures in terms of response
+
+
+```{r}
+#subsetting it to nearest 5, 10, 20 and 50
+biopsy_distance_df_5 <- biopsy_distance_df[which(biopsy_distance_df$Cluster_Size==5), ]
+biopsy_distance_df_10 <- biopsy_distance_df[which(biopsy_distance_df$Cluster_Size==10), ]
+biopsy_distance_df_20 <- biopsy_distance_df[which(biopsy_distance_df$Cluster_Size==20), ]
+biopsy_distance_df_50 <- biopsy_distance_df[which(biopsy_distance_df$Cluster_Size==50), ]
+```
+
+so now look at reponse
+
+```{r}
+wilcox.test(biopsy_distance_df_5$Av_Mean_Distance_lymphocyte_to_tumour[which(biopsy_distance_df_5$pCR=="pCR")],biopsy_distance_df_5$Av_Mean_Distance_lymphocyte_to_tumour[-which(biopsy_distance_df_5$pCR=="pCR")] )
+
+wilcox.test(biopsy_distance_df_10$Av_Mean_Distance_lymphocyte_to_tumour[which(biopsy_distance_df_10$pCR=="pCR")],biopsy_distance_df_10$Av_Mean_Distance_lymphocyte_to_tumour[-which(biopsy_distance_df_10$pCR=="pCR")] )
+
+wilcox.test(biopsy_distance_df_20$Av_Mean_Distance_lymphocyte_to_tumour[which(biopsy_distance_df_20$pCR=="pCR")],biopsy_distance_df_20$Av_Mean_Distance_lymphocyte_to_tumour[-which(biopsy_distance_df_20$pCR=="pCR")] )
+
+wilcox.test(biopsy_distance_df_50$Av_Mean_Distance_lymphocyte_to_tumour[which(biopsy_distance_df_50$pCR=="pCR")],biopsy_distance_df_50$Av_Mean_Distance_lymphocyte_to_tumour[-which(biopsy_distance_df_50$pCR=="pCR")] )
+
+ggplot(biopsy_distance_df_5, aes(x=pCR, y=Av_Mean_Distance_lymphocyte_to_tumour))+
+  geom_boxplot()+
+  theme_bw(base_size=18)+
+  ylab("Average Distance")
+
+```
+
+ok what about other measurement
+
+```{r}
+wilcox.test(biopsy_distance_df_5$Av_Mean_Distance_stroma_to_tumour[which(biopsy_distance_df_5$pCR=="pCR")],biopsy_distance_df_5$Av_Mean_Distance_stroma_to_tumour[-which(biopsy_distance_df_5$pCR=="pCR")] )
+
+ggplot(biopsy_distance_df_5, aes(x=pCR, y=Av_Mean_Distance_stroma_to_tumour))+
+  geom_boxplot()+
+  theme_bw(base_size=18)+
+  ylab("Average Distance")
+
+
+wilcox.test(biopsy_distance_df_5$Av_Mean_Distance_lymphocyte_to_stroma[which(biopsy_distance_df_5$pCR=="pCR")],biopsy_distance_df_5$Av_Mean_Distance_lymphocyte_to_stroma[-which(biopsy_distance_df_5$pCR=="pCR")] )
+
+ggplot(biopsy_distance_df_5, aes(x=pCR, y=Av_Mean_Distance_lymphocyte_to_stroma))+
+  geom_boxplot()+
+  theme_bw(base_size=18)+
+  ylab("Average Distance")
+
+
+biopsy_distance_df_5[which(biopsy_distance_df_5$Av_Mean_Distance_lymphocyte_to_stroma>100), ]
+
+
+
+
+#between tumour cells?
+
+wilcox.test(biopsy_distance_df_5$Av_Mean_Distance_tumour_to_tumour[which(biopsy_distance_df_5$pCR=="pCR")],biopsy_distance_df_5$Av_Mean_Distance_tumour_to_tumour[-which(biopsy_distance_df_5$pCR=="pCR")] )
+
+
+
+ggplot(biopsy_distance_df_5, aes(x=pCR, y=Av_Mean_Distance_tumour_to_tumour))+
+  geom_boxplot()+
+  stat_compare_means(label.x = 1.2, 
+                     label.y = -2)+
+  theme_bw(base_size = 16)+
+  ylab("Distance between Tumour cells")
+```
+
+do the distance between lymphocyte to others correlate?
+
+```{r}
+
+ggplot(biopsy_distance_df_5, aes(x=Av_Mean_Distance_lymphocyte_to_tumour, y=Av_Mean_Distance_lymphocyte_to_lymphocyte))+
+  geom_point()
+
+cor(biopsy_distance_df_5$Av_Mean_Distance_lymphocyte_to_lymphocyte, as.numeric(biopsy_distance_df_5$mean_lymph_KDE_knn_50))
+
+
+```
+
+

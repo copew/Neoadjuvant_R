@@ -1,0 +1,69 @@
+---
+title: "tidying up data"
+output: pdf_document
+---
+
+
+```{r echo=FALSE}
+library(readr)
+library(stringr)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#useful commands
+grep("fibrosis",x)
+grepl("fibrosis",x)
+grep("\\D\\\D",x)
+grep("\\d\\\d",x)
+grep("\\d\\\\d",x)
+grep("\\d/\\d",x)
+x[1158]
+grepl("\\d/\\d",x)
+table(grepl("\\d/\\d",x))
+x[1158]
+?gsub
+table(grep("\\d/\\d",x,value = T))
+grep("\\d/\\d",x,value = T)
+regexpr("\\d/\\d",x,value = T)
+regexpr("\\d/\\d",x)
+gregexpr("\\d/\\d",x)
+regexpr("\\d/\\d",x)
+regexpr("\\d/\\d",x)
+regmatches(x, regexpr("\\d/\\d",x))
+x <- tolower(gsub("\\n"," ",TransNeo$Comment5combined))
+sort(table(tolower(gsub("\\n"," ",TransNeo$Comment5combined))))
+sort(table(tolower(gsub("\\n","",TransNeo$Comment5combined))))
+nrow(table(tolower(gsub("\\n","",TransNeo$Comment5combined))))
+```
+
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+setwd("/Users/cope01/Documents/OneDrive - University Of Cambridge/Documents/PhD/Nanostring/R scripts")
+monet <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/Monet.csv")
+
+monet <- as.data.frame(as.character(monet))
+tissue_na <- monet[is.na(monet$tissue), ]
+
+#change all to lower case
+
+
+```
+
+
+
+```{r}
+table(monet$Comment_2)
+
+```
+
+Generate a column of tissue
+
+```{r}
+monet[str_detect(monet$Comment_2, "Breast"), "tissue"] <- "breast"
+monet[str_detect(monet$Comment_2, "Lymph Node"), "tissue"] <- "ln"
+
+
+```
+

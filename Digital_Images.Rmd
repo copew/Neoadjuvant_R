@@ -1,0 +1,44 @@
+---
+title: "Digital Images"
+output: pdf_document
+---
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+setwd("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/")
+
+library(readr)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+Monet <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/Monet.csv")
+```
+
+The number of slides per case:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+table1 <- as.data.frame.matrix(table(Monet$TrialID, Monet$Specimen))
+kable(table1, escape = F) %>%
+  kable_styling(full_width = F)%>%
+  add_header_above(c("Trial ID"=1, "Specimen Type"=2))
+```
+
+Different stains used:
+
+```{r}
+table2 <- as.data.frame.matrix(table(Monet$TrialID, Monet$Stain))
+table2 <- table2[ ,c(4, 5, 3, 6, 1, 2, 7, 8)]
+kable(table2, align="c") %>%
+  kable_styling(full_width = F) %>%
+  column_spec(1:8, width = "23mm")%>%
+  column_spec(1:2, border_right = T)%>%
+  add_header_above(c("Trial ID"=1, "H&E" = 1, "IHC" = 7))
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+table3 <- as.data.frame.matrix(table(Monet$TrialID, Monet$Tissue))
+kable(table3) %>%
+  kable_styling(full_width = F)%>%
+  add_header_above(c("Trial ID"=1, "Tissue Type"=))
+```

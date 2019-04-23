@@ -1,0 +1,54 @@
+---
+title: "Distance between tumour cells"
+output: pdf_document
+---
+
+from the analysis of neighbouring cells, we note that in the biopsy from the patients that achieved pCR, the tumour cells are more likely to have more tumour cells as their nearest neighbours.  is this reflected on distance as well?
+
+```{r}
+library(readr)
+
+#get the files
+csvfolder <- "/Volumes/Wei/Cell_clustering/detail_newlist"
+csv_list <- list.files(csvfolder, pattern = "tumour_to_tumour", recursive = T, full.names = T)
+all_files <- lapply(csv_list, function (i) read.csv(i, header=FALSE))
+names(all_files) <- sub("/Volumes/Wei/Cell_clustering/detail_newlist/clustering_detail_", "", csv_list)
+names(all_files) <- sub("_tumour_to_tumour_nearest50.csv", "", names(all_files))
+
+#now each file in the list of all_files has a name like "616851" 
+
+#now to summarise the data in terms of median and mean distance for closest:
+closest_tumour <- data.frame(matrix(NA , nrow = 349, ncol = 3))
+colnames(closest_tumour) <- c("ImageID", "Mean", "Median")
+for (i in 1:349) {
+  closest_tumour[i, 1] <- names(all_files)[i]
+  closest_tumour[i, 2] <- mean(all_files[[i]][,1])
+  closest_tumour[i, 3] <- median(all_files[[i]][,1])
+}
+
+```
+
+now get the metadata and combine it
+
+```{r}
+#now get the metadata with digipath combined
+#"test_df_rcb"
+load("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Nanostring/R scripts/transneo_rcb_digipath.RDATA")
+colnames(test_df_rcb)[1] <- "ImageID"
+closest_tumour_meta <- merge(closest_tumour, test_df_rcb, by="ImageID")
+
+
+#look at plots
+
+ggplot(closest_tumour_meta, aes(x=pCR, y=Mean))+
+  geom_boxplot()+theme_bw()+stat_compare_means(method = "t.test")+ggtitle("Mean of distance of a tumour cell to its closest tumour cell")
+
+ggplot(closest_tumour_meta, aes(x=RCB, y=Mean))+
+  geom_boxplot()+theme_bw()+stat_compare_means(method = "t.test", comparisons=list(c("I", "pCR"), c("pCR", "III"), c("pCR", "II")))+ggtitle("Mean of distance of a tumour cell to its closest tumour cell")
+
+#ggplot(closest_tumour_meta, aes(x=pCR, y=Median))+
+#  geom_boxplot()+theme_bw()+stat_compare_means(method = "t.test")+ggtitle("Median of distance #of a tumour cell to its closest tumour cell")
+
+
+```
+

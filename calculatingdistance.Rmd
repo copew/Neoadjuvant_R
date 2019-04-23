@@ -1,0 +1,34 @@
+---
+title: "Making a different way of getting "expected" distances"
+output: pdf_document
+---
+
+
+```{r}
+library(pdist)
+library(FITSio)
+
+first_image <- readFITS("/Users/cope01/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Accuracy/590015.fits")
+
+first_image_original <- data.table(X=first_image$col[[1]], Y=first_image$col[[2]], Cell=first_image$col[[62]][330388:660774])
+
+#working out pair wise distance
+first_image_original[Cell==4,Cell:=1]
+props <- prop.table(table(first_image_original$Cell))
+N <- 100
+
+props.cuts <- round(N/props)
+
+#lapply(1:nrow(first_image_original),function(i){
+apply(  
+  sapply(1:100,function(i){
+    (pw.dist.cuts <- sort(first_image_original[,sqrt((X-X[i])^2+(Y-Y[i])^2)][-i])[props.cuts])
+  }),
+  1, median
+)
+
+
+#median(sapply(1:1000, function(i) which(cumsum(first_image_original$Cell[sample(1:nrow(first_image_original))]==3)==100)[1]))
+#this is randomising labels to see where would you go to get to 100th cell of a certain typ (3 in this case)
+
+```

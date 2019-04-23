@@ -1,0 +1,169 @@
+---
+title: "5 of each of pcr and rcb III"
+output: pdf_document
+---
+
+
+```{r}
+library(FITSio)
+library(readr)
+library(plyr)
+
+```
+
+```{r}
+file_list <- list.files(pattern="*.fits") 
+files <- list.files()
+files <- lapply(file_list, readFITS)
+
+#first_image <- readFITS("/Users/cope01/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Accuracy/590015.fits")
+
+#now make the files
+reduced_files <- list()
+for (i in 1:10) reduced_files[[i]] <-  data.frame(cbind(round(files[[i]]$col[[3]], 3), round(files[[i]]$col[[4]], 3), files[[i]]$col[[62]]))
+
+image_ids <- c("x593988", "x594107", "x602958", "x603976", "x619487", "x597830", "x603055", "x619508", "x619932", "x625908")
+
+#name the files
+names(reduced_files) <- paste("x", sub(".fits", "", file_list), sep="")
+
+#change column names, add in imageIDs and remove 0 cell_type
+for (i in 1:10) {
+  colnames(reduced_files[[i]]) <- c("x", "y", "cell_type")
+  reduced_files[[i]]$ImageID <- names(reduced_files)[i]
+  reduced_files[[i]] <- reduced_files[[i]][-which(reduced_files[[i]]$cell_type== 0), ]
+  }
+```
+
+now calculate the deldir features on the cluster
+```{r}
+# save(reduced_files, file="reduced_files.RData")
+# vtess_pcr1 <- deldir(x593988$X1, x593988$X2)
+# vtess_pcr2 <- deldir(x594107$X1, x594107$X2)
+
+#this bit is done on cluster 
+```
+
+vtess-pcr1 is there so can try to extract features to have a try
+```{r}
+#n.tri is the number of triangles from a given point.  does thsi differ depending on cell type
+#first find out about data
+summary_pcr1 <- vtess_pcr1$summary
+colnames(x593988) <- c("x", "y", "cell_type")
+summary_pcr1_celltype <- merge(summary_pcr1, x593988, by.x=c("x", "y"))
+summary_pcr1_celltype$cell_type <- sub("4", "1", summary_pcr1_celltype$cell_type)
+
+ggplot(summary_pcr1_celltype, aes(x=cell_type, y=n.tri))+
+  geom_boxplot()+
+  theme_bw()+
+  stat_compare_means(comparisons = list(c("1", "2"), c("2", "3"), c("1", "3")))
+
+summary(summary_pcr1_celltype$n.tri)
+
+#dt <- data.frame(age=rchisq(20,10),group=sample(1:2,20,rep=T))
+
+summary_test <- ddply(summary_pcr1_celltype,~cell_type,summarise,mean=mean(n.tri),sd=sd(n.tri))
+
+
+ggplot(summary_pcr1_celltype, aes(x=cell_type, y=log(del.area)))+
+  geom_boxplot()+
+  theme_bw()+
+  stat_compare_means(comparisons = list(c("1", "2"), c("2", "3"), c("1", "3")))
+
+
+```
+
+now get the 10 data files from cluster
+```{r}
+setwd("/Users/cope01/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts")
+#make a list
+vtess_list <- list()
+file_names <- dir(pattern=paste("vtess_"))[-1]
+vtess_list <- lapply(file_names, function(file_name){
+   df <- load(file_name)
+   return(get(df))})
+```
+
+Then we do these summary statistics within each group and then compare
+```{r}
+#add in response data first
+names(vtess_list) <- image_ids
+for (i in 1:5) vtess_list[[i]]$summary$response <- "pCR"
+for (i in 6:10) vtess_list[[i]]$summary$response <- "rcbIII"
+
+#round up x and y
+for (i in 1:10) {
+  vtess_list[[i]]$summary$x <- round(vtess_list[[i]]$summary$x, 3)
+  vtess_list[[i]]$summary$y <- round(vtess_list[[i]]$summary$y, 3)
+}
+
+
+#merge cell type and summary dataframe by x and y coordinates
+for (i in 1:10) {
+  vtess_list[[i]]$summary_celltype <- merge(vtess_list[[i]]$summary, x = reduced_files[[which(names(reduced_files) == names(vtess_list)[i])]], by=c("x", "y"))
+}
+
+#checking if the merge has worked
+for (i in 1:10) print(dim(vtess_list[[i]]$summary_celltype))
+#however some values are not unique as some cells are not there
+
+#now combine this all into one
+for (i in 1:10) vtess_all <- data.frame(rbind(vtess_list[[i]]$summary_celltype, vtess_all))
+#now remove duplicates
+vtess_all <- unique(vtess_all)
+#change normal (cell_type==4) to tumour (cell_type==1)
+vtess_all$cell_type <- sub("4", "1", vtess_all$cell_type)
+
+#now do some plots maybe?
+ggplot(vtess_all, aes(x=as.factor(cell_type), y=n.tri, fill=response))+
+  geom_boxplot()+
+  theme_bw(base_size = 16)+
+  stat_compare_means(aes(group = response), label = "p.format", size=12)+
+  xlab("Cell Types")+
+  ggtitle("Number of Cell Neighbours Correlate with Response")+
+  ylab("Number of Neighbouring Cells")+
+  scale_x_discrete(labels=c("Tumour", "Lymphocyte", "Stromal"))
+
+
+ggplot(vtess_all, aes(x=as.factor(cell_type), y=log(dir.area), fill=response))+
+  geom_boxplot()+
+  theme_bw(base_size = 16)+
+  stat_compare_means(aes(group = response), label = "p.format", size=12)+
+  xlab("Cell Types")+
+  ggtitle("Calculated Cell Area Correlate with Response")+
+  ylab("Area")+
+  scale_x_discrete(labels=c("Tumour", "Lymphocyte", "Stromal"))
+
+
+
+#correlate between number of neighbours and area
+ggplot(vtess_all, aes(x=as.factor(n.tri), y=log(dir.area), fill=cell_type))+
+  geom_boxplot()+
+  theme_bw()
+
+
+```
+
+
+
+
+```{r}
+x <- data.table::data.table(vtess_all)[,as.list(by(dir.area,cell_type,mean)),.(ImageID,response)]
+```
+
+
+
+
+
+below is not run yet
+
+```{r}
+#this is the more summarised ones
+lapply(vtess_list, function(i) {
+  del.area[i] <- mean(vtess_list[[i]]$del.area)
+  dir.area[i] <- mean(vtess_list[[i]]$dir.area)
+  response[i] <- mean(vtess_list[[i]]$response)
+})
+
+```
+

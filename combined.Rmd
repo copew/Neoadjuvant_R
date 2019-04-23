@@ -1,0 +1,112 @@
+---
+title: "Combined Digital Images"
+output:
+  pdf_document: default
+  
+---
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+setwd("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/")
+library(readr)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+combined_ffpe <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Scanned Images/Combined_ffpe.csv")
+```
+
+
+The trials included in this dataset are:
+ - Monet
+ - Persephone
+ - TransNeo
+ - Partner
+ 
+Each trial has the following:
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+monet <- combined_ffpe[combined_ffpe$Trial == "Monet", ]
+persephone <-  combined_ffpe[combined_ffpe$Trial  == "Persephone", ]
+transneo <- combined_ffpe[combined_ffpe$Trial  == "TransNeo", ]
+partner <- combined_ffpe[combined_ffpe$Trial  == "Partner", ]
+
+trial_cases <- as.data.frame(cbind(c("Monet","Persephone", "TransNeo", "Partner"), c(length(unique(monet$Trial_ID)), length(unique(persephone$Trial_ID)), length(unique(transneo$Trial_ID)), length(unique(partner$Trial_ID)))))
+colnames(trial_cases) <- c("Trial", "Number of Patients")
+
+kable(trial_cases, align = "c") %>% 
+  kable_styling(full_width = F, font_size =11)
+```
+
+ 
+
+We have slides that have H&E and other stains, from both biopsy and surgical procedures.  
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+biopsy <- combined_ffpe[combined_ffpe$Procedure=="Biopsy", ]
+surgical <- combined_ffpe[combined_ffpe$Procedure=="Surgical", ]
+
+trial_biopsy <- as.data.frame.matrix(table(biopsy$Trial, biopsy$Stain=="H&E"))
+trial_biopsy <- trial_biopsy[ ,c(2,1)]
+colnames(trial_biopsy) <- c("H and E", "Others")
+trial_biopsy$Total <- rowSums(trial_biopsy, dims=1)
+
+trial_surgical <- as.data.frame.matrix(table(surgical$Trial, surgical$Stain=="H&E"))
+trial_surgical <- trial_surgical[ ,c(2,1)]
+colnames(trial_surgical) <- c("H and E", "Others")
+trial_surgical$Total <- rowSums(trial_surgical, dims=1)
+
+trials <- cbind.data.frame(trial_biopsy, trial_surgical)
+trials$Overall <- trial_biopsy$Total + trial_surgical$Total
+trials <- rbind(trials, colSums(trials, dims=1))
+rownames(trials)[5] <- "Total"
+trials$'Number of Patients' <- c(26, 32, 33, 180, 271)
+kable(trials, escape=F, align="c") %>%
+  kable_styling(full_width = F, "bordered", font_size =11) %>% 
+  add_header_above(c("Trial" = 1, "Biopsy" = 3, "Surgical"=3, " " = 1, "  " = 1 ))
+
+```
+
+Of these, we have slides of breast tissue and lymph node tissue.  Some fibrousfatty tissue is also included as they were taken with lymph nodes
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+trial_breast <- combined_ffpe[combined_ffpe$Tissue == "Breast", ]
+trial_LN <- combined_ffpe[combined_ffpe$Tissue == "LN", ]
+
+trial_tissue <- as.data.frame.matrix(table(combined_ffpe$Trial, combined_ffpe$Tissue))
+trial_tissue <- trial_tissue[, c(2, 5, 1, 3, 4, 6)]
+
+kable(trial_tissue, align = "c") %>%
+  kable_styling(full_width = F, font_size =11)
+```
+
+Amongst the breast slides, the number of slides that include the following features are:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+invasive <- as.data.frame.matrix(table(trial_breast$Trial, trial_breast$Tumour))
+InSitu <- as.data.frame.matrix(table(trial_breast$Trial, trial_breast$InSitu))
+LVI <- as.data.frame.matrix(table(trial_breast$Trial, trial_breast$LVI))
+LVI$Trials <- rownames(LVI)
+tumour <- merge(invasive, InSitu,  by="row.names")
+colnames(tumour)[1] <- "Trials"
+tumour <- merge(tumour, LVI, by = "Trials")
+
+
+
+kable(tumour, align="c") %>%
+  kable_styling(full_width = F, font_size =11)
+
+
+
+```
+
+
+The number of lymph node per slides varies.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+LNperslide <- table(trial_LN$Trial,  trial_LN$TotalLN)
+kable(LNperslide) %>% 
+  kable_styling(full_width = F, font_size =11)
+```
+
+
+

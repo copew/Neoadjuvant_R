@@ -1,0 +1,11 @@
+---
+title: "50 Nearest Neighbours"
+output: pdf_document
+---
+
+
+
+```{r}
+
+```
+

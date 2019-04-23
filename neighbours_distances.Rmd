@@ -1,0 +1,211 @@
+---
+title: "Neighbours and Distances"
+output: pdf_document
+---
+
+The analysis is performed using the SVM version of cell extractor, with normal, cancer, lymphocyte, stroma as cell categories.  
+
+Aim:
+1. Look at the composition of a cell's neighbours.  how many are cancer, how many are stroma etc
+2. Look at the distance between cell types and see whether one are closer to another
+
+
+the cell key is as following:
+1 is tumour, 2 lymph, 3 stroma, 4 normal
+
+
+Firstly we look at a cell's neighbours
+
+```{r}
+library(reshape2)
+library(ggplot2)
+library(readr)
+
+```
+
+
+
+```{r}
+neighbours_605012_lymph <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/Cell_clustering/detail/clustering_detail_605012_lymphocyte_cellids_nearest50.csv", col_names = FALSE)
+
+neighbours_605012_lymph$ID <- paste("Lymph",c(1:nrow(neighbours_605012_lymph)))
+rownames(neighbours_605012_lymph) <- neighbours_605012_lymph$ID
+
+neighbours_605012_lymph$Tumour <- rowSums(neighbours_605012_lymph==1)
+neighbours_605012_lymph$Lymph <- rowSums(neighbours_605012_lymph==2)
+neighbours_605012_lymph$Stroma <- rowSums(neighbours_605012_lymph==3)
+neighbours_605012_lymph$Normal <- rowSums(neighbours_605012_lymph==4)
+
+neighbours_605012_lymph_by_position <- data.frame(cbind(colSums(neighbours_605012_lymph==1)+colSums(neighbours_605012_lymph==4), colSums(neighbours_605012_lymph==2), colSums(neighbours_605012_lymph==3)))
+colnames(neighbours_605012_lymph_by_position) <- c("Tumour", "Lymphocytes", "Stroma")
+neighbours_605012_lymph_by_position$Position <- rownames(neighbours_605012_lymph_by_position)
+neighbours_605012_lymph_by_position$Position[1:9] <- c("X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08", "X09")
+neighbours_605012_lymph_by_position_melted <- melt(neighbours_605012_lymph_by_position[1:50,])
+
+ggplot(neighbours_605012_lymph_by_position_melted, aes(x=Position, y=value/nrow(neighbours_605012_lymph), group=variable, colour=variable))+
+  geom_line(size=2)+
+  theme_bw(base_size = 18)+ 
+  scale_color_discrete("Neighbouring Cell Type")+
+  labs(title="Lymphocytes neighbour cell type")+
+  geom_hline(yintercept = c(0.081928864,	0.03723156,	0.880839577), colour=c("#F8766D", "#00BA38", "#619CFF" ), linetype="dashed")+ 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(y="Percentage")
+
+
+
+
+```
+
+
+
+```{r}
+neighbours_647364_lymph <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/Cell_clustering/detail/clustering_detail_647364_lymphocyte_cellids_nearest50.csv", col_names = FALSE)
+
+neighbours_647364_lymph$ID <- paste("Lymph",c(1:nrow(neighbours_647364_lymph)))
+rownames(neighbours_647364_lymph) <- neighbours_647364_lymph$ID
+
+neighbours_647364_lymph$Tumour <- rowSums(neighbours_647364_lymph==1)
+neighbours_647364_lymph$Lymph <- rowSums(neighbours_647364_lymph==2)
+neighbours_647364_lymph$Stroma <- rowSums(neighbours_647364_lymph==3)
+neighbours_647364_lymph$Normal <- rowSums(neighbours_647364_lymph==4)
+
+neighbours_647364_lymph_by_position <- data.frame(cbind(colSums(neighbours_647364_lymph==1), colSums(neighbours_647364_lymph==2), colSums(neighbours_647364_lymph==3), colSums(neighbours_647364_lymph==4)))
+colnames(neighbours_647364_lymph_by_position) <- c("Tumour", "Lymphocytes", "Stroma", "Normal")
+neighbours_647364_lymph_by_position$Position <- rownames(neighbours_647364_lymph_by_position)
+neighbours_647364_lymph_by_position$Position[1:9] <- c("X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08", "X09")
+neighbours_647364_lymph_by_position_melted <- melt(neighbours_647364_lymph_by_position[1:50,])
+
+ggplot(neighbours_647364_lymph_by_position_melted, aes(x=Position, y=value, group=variable, colour=variable))+
+  geom_line(size=2)+
+  theme_bw()+ 
+  scale_color_discrete("Neighbouring Cell Type")+
+  labs(title="Lymphocytes neighbour cell type")
+
+
+```
+
+
+
+
+```{r}
+neighbours_648121_lymph <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/Cell_clustering/detail/clustering_detail_648121_lymphocyte_cellids_nearest50.csv", col_names = FALSE)
+
+neighbours_648121_lymph$ID <- paste("Lymph",c(1:nrow(neighbours_648121_lymph)))
+rownames(neighbours_648121_lymph) <- neighbours_648121_lymph$ID
+
+neighbours_648121_lymph$Tumour <- rowSums(neighbours_648121_lymph==1)
+neighbours_648121_lymph$Lymph <- rowSums(neighbours_648121_lymph==2)
+neighbours_648121_lymph$Stroma <- rowSums(neighbours_648121_lymph==3)
+neighbours_648121_lymph$Normal <- rowSums(neighbours_648121_lymph==4)
+
+neighbours_648121_lymph_by_position <- data.frame(cbind(colSums(neighbours_648121_lymph==1)+colSums(neighbours_648121_lymph==4), colSums(neighbours_648121_lymph==2), colSums(neighbours_648121_lymph==3)))
+#neighbours_648121_lymph_by_position$Tumour <- sum(neighbours_648121_lymph_by_position$Tumour, neighbours_648121_lymph_by_position$Normal)
+
+colnames(neighbours_648121_lymph_by_position) <- c("Tumour", "Lymphocytes", "Stroma")
+neighbours_648121_lymph_by_position$Position <- rownames(neighbours_648121_lymph_by_position)
+neighbours_648121_lymph_by_position$Position[1:9] <- c("X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08", "X09")
+neighbours_648121_lymph_by_position_melted <- melt(neighbours_648121_lymph_by_position[1:50,])
+
+ggplot(neighbours_648121_lymph_by_position_melted, aes(x=Position, y=value/nrow(neighbours_648121_lymph), group=variable, colour=variable))+
+  geom_line(size=2)+
+  theme_bw(base_size = 18)+ 
+  scale_color_discrete("Neighbouring Cell Type")+
+  labs(title="Lymphocytes neighbour cell type")+
+  geom_hline(yintercept = c(0.409369812,	0.079632456,	0.510997732), colour=c("#F8766D", "#00BA38", "#619CFF" ), linetype="dashed")+ 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(y="Percentage")
+
+
+neighbours_648121_lymph_by_position_melted_1to10 <- melt(neighbours_648121_lymph_by_position[1:10,])
+ggplot(neighbours_648121_lymph_by_position_melted_1to10, aes(x=Position, y=value, group=variable, colour=variable))+
+  geom_line(size=2)+
+  theme_bw()+ 
+  scale_color_discrete("Neighbouring Cell Type")+
+  labs(title="Lymphocytes neighbour cell type")
+
+
+```
+
+
+
+What about neighbours of tumour cells?
+
+```{r}
+neighbours_648121_tumour <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/Cell_clustering/detail/clustering_detail_648121_tumour_cellids_nearest50.csv", col_names = FALSE)
+
+neighbours_648121_tumour$ID <- paste("tumour",c(1:nrow(neighbours_648121_tumour)))
+rownames(neighbours_648121_tumour) <- neighbours_648121_tumour$ID
+
+neighbours_648121_tumour$Tumour <- rowSums(neighbours_648121_tumour==1)
+neighbours_648121_tumour$Lymph <- rowSums(neighbours_648121_tumour==2)
+neighbours_648121_tumour$Stroma <- rowSums(neighbours_648121_tumour==3)
+neighbours_648121_tumour$Normal <- rowSums(neighbours_648121_tumour==4)
+
+neighbours_648121_tumour_by_position <- data.frame(cbind(colSums(neighbours_648121_tumour==1)+colSums(neighbours_648121_tumour==4), colSums(neighbours_648121_tumour==2), colSums(neighbours_648121_tumour==3)))
+colnames(neighbours_648121_tumour_by_position) <- c("Tumour", "Lymphocytes", "Stroma")
+neighbours_648121_tumour_by_position$Position <- rownames(neighbours_648121_tumour_by_position)
+neighbours_648121_tumour_by_position$Position[1:9] <- c("X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08", "X09")
+neighbours_648121_tumour_by_position_melted <- melt(neighbours_648121_tumour_by_position[1:50,])
+
+ggplot(neighbours_648121_tumour_by_position_melted, aes(x=Position, y=value/nrow(neighbours_648121_tumour), group=variable, colour=variable))+
+  geom_line(size=2)+
+  theme_bw(base_size=18)+ 
+  scale_color_discrete("Neighbouring Cell Type")+
+  labs(title="Tumour cells neighbour cell type")+
+  geom_hline(yintercept = c(0.409369812,	0.079632456,	0.510997732), colour=c("#F8766D", "#00BA38", "#619CFF" ), linetype="dashed")+ 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(y="Percentage")
+
+
+```
+```{r}
+neighbours_605012_tumour <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/Cell_clustering/detail/clustering_detail_605012_tumour_cellids_nearest50.csv", col_names = FALSE)
+
+neighbours_605012_tumour$ID <- paste("tumour",c(1:nrow(neighbours_605012_tumour)))
+rownames(neighbours_605012_tumour) <- neighbours_605012_tumour$ID
+
+neighbours_605012_tumour$Tumour <- rowSums(neighbours_605012_tumour==1)
+neighbours_605012_tumour$Lymph <- rowSums(neighbours_605012_tumour==2)
+neighbours_605012_tumour$Stroma <- rowSums(neighbours_605012_tumour==3)
+neighbours_605012_tumour$Normal <- rowSums(neighbours_605012_tumour==4)
+
+neighbours_605012_tumour_by_position <- data.frame(cbind(colSums(neighbours_605012_tumour==1)+colSums(neighbours_605012_tumour==4), colSums(neighbours_605012_tumour==2), colSums(neighbours_605012_tumour==3)))
+colnames(neighbours_605012_tumour_by_position) <- c("Tumour", "Lymphocytes", "Stroma")
+neighbours_605012_tumour_by_position$Position <- rownames(neighbours_605012_tumour_by_position)
+neighbours_605012_tumour_by_position$Position[1:9] <- c("X01", "X02", "X03", "X04", "X05", "X06", "X07", "X08", "X09")
+neighbours_605012_tumour_by_position_melted <- melt(neighbours_605012_tumour_by_position[1:50,])
+
+ggplot(neighbours_605012_tumour_by_position_melted, aes(x=Position, y=value/nrow(neighbours_605012_tumour), group=variable, colour=variable))+
+  geom_line(size=2)+
+  theme_bw(base_size = 18)+ 
+  scale_color_discrete("Neighbouring Cell Type")+
+  labs(title="Tumour cells neighbour cell type")+
+  geom_hline(yintercept = c(0.081928864,	0.03723156,	0.880839577), colour=c("#F8766D", "#00BA38", "#619CFF" ), linetype="dashed")+ 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(y="Percentage")
+
+
+```
+
+
+
+
+
+
+
+Then let's look at distances
+
+comparing 605012 and 648121
+
+```{r}
+two_slide_comparison <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Thomas/two_slide_comparison.csv")
+
+colnames(two_slide_comparison)
+
+two_slide_summary <- two_slide_comparison[c(8, 16), 1:13]
+two_slide_summary_melted <- melt(two_slide_summary, id=c("Slide_ID", "Cluster_Size"))
+
+
+
+```
+

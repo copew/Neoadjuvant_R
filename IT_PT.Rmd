@@ -1,0 +1,135 @@
+---
+title: "intratumoural vs peritumoural"
+output: pdf_document
+---
+
+
+```{r}
+library(readr)
+library(ggplot2)
+library(data.table)
+library(reshape2)
+library(ggpubr)
+
+#load files
+csvfolder <- "~/Documents/MATLAB/CSV_files"
+csv_list <- list.files(csvfolder, pattern = ".csv", recursive = T, full.names = T)
+all_files <- lapply(csv_list, function (i) read.csv(i, header=FALSE))
+names(all_files) <- sub("/Users/cope01/Documents/MATLAB/CSV_files/", "", csv_list)
+names(all_files) <- sub(".csv", "", names(all_files))
+all_files <-  lapply(all_files, transpose)
+names <- names(all_files)
+
+#put imageID and location (buffer zone or intratumoural) within the dataframe
+split_names <- strsplit(names, "_")
+for (i in 1:length(all_files)){
+  all_files[[i]]$ImageID <- split_names[[i]][1]
+  all_files[[i]]$location <- split_names[[i]][2]
+}
+
+#combine all the files together
+concentration <- do.call(rbind, all_files)
+colnames(concentration)[1] <- "density"
+concentration <- na.omit(concentration)
+
+# for (i in 1:nrow(concentration)){
+#   ifelse (concentration$ImageID[i] %in% c("619905", "619857", "603288"),  concentration$pattern[i] <-  "peri", concentration$pattern[i] <- "intra")
+# }
+
+
+# ggplot(concentration, aes(x=ImageID,y=log(density), fill=location))+
+#   geom_boxplot()+
+#   theme_bw()+
+#   facet_grid(~pattern)
+
+```
+
+
+
+
+```{r}
+#make a dataframe to calculate the difference
+combined_list <- list()
+for (i in 1:(length(all_files)/2)){
+  combined_list[[i]] <- cbind(all_files[[2*i-1]], all_files[[2*i]])
+  combined_list[[i]] <- combined_list[[i]][,c(1, 2, 4)]
+  colnames(combined_list[[i]]) <- c("conc_buffer", "ImageID", "conc_in")
+  combined_list[[i]]$difference <-  combined_list[[i]]$conc_buffer - combined_list[[i]]$conc_in
+  names(combined_list)[i] <- combined_list[[i]]$ImageID[1]
+  }
+
+combined <- do.call(rbind, combined_list)
+combined <- na.omit(combined)
+```
+
+
+```{r}
+#now load the rcb and her2 er info file
+Transneo_er_her2 <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/Transneo_er_her2.csv")
+transneo_imageID <- read_csv("~/Documents/OneDrive - University Of Cambridge/Documents/PhD/Neoadjuvant/rscripts/image_ID.csv")
+
+combined <- merge(combined, transneo_imageID, by="ImageID")
+
+colnames(Transneo_er_her2)[1] <- "TN_ID"
+
+
+combined <- merge(combined, Transneo_er_her2, by="TN_ID")
+
+my_comparisons <- list(c("pCR", "RCB-I"), c("RCB-I", "RCB-II"),c("RCB-II", "RCB-III"))
+
+ggplot(combined, aes(x=RCB.category, y=log(difference+1), fill=ER.status))+
+  geom_boxplot()+ylim(c(-0.001, 0.002))+stat_compare_means( label.x=1.2)+theme_bw()
+
+
+median_difference <- transneo_imageID
+median_difference$ImageID <- as.character(median_difference$ImageID)
+median_difference$med_diff <- NA
+for (i in 1:length(combined_list)){
+  j <- which(names(combined_list)==median_difference$ImageID[i])
+  median_difference$med_diff[i] <-median(na.omit(combined_list[[j]]$difference))
+}
+
+median_difference <- merge(median_difference, Transneo_er_her2, by="TN_ID")
+median_difference$pCR_status <- ifelse(median_difference$RCB.category=="pCR", "pCR", "RD")
+median_difference_no_na <- na.omit(median_difference)
+
+ggplot(median_difference_no_na, aes(x=pCR_status, y=med_diff))+
+  geom_boxplot()+theme_bw()+stat_compare_means()
+
+
+
+
+
+```
+
+
+
+
+
+
+```{r}
+library(readr)
+X603288_buffer <- read_csv("~/Documents/MATLAB/603288_buffer.csv", col_names =FALSE)
+X603288_in <- read_csv("~/Documents/MATLAB/603288_in.csv", 
+    col_names = FALSE)
+buffer <- data.frame(t(X603288_buffer))
+intra <- data.frame(t(X603288_in))
+total <- data.frame(cbind(buffer, intra))
+colnames(total) <-  c("peri", "intra")
+total$difference <- total$peri-total$intra
+total_melted <- melt(total)
+
+hist(total$difference, breaks = 100)
+
+
+ggplot(total_melted, aes(x=variable, y=log(value)))+ 
+  geom_boxplot()
+```
+
+
+```{r}
+ggplot(total_melted, aes(x=value, colour=variable))+
+  geom_density()+
+  xlim(c(0, 0.002))+theme_bw()
+```
+
